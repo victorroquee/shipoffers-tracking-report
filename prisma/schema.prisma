@@ -1,0 +1,44 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  // Em produção (Vercel Postgres), trocar para:
+  // provider = "postgresql"
+  // A URL é configurada em prisma.config.ts (Prisma 7)
+}
+
+model Order {
+  id                 String       @id @default(cuid())
+  shipofffersId      String       @unique
+  trackingCode       String?
+  customerName       String?
+  customerEmail      String?
+  destinationCountry String?
+  shippedAt          DateTime?
+  deliveredAt        DateTime?
+  status             String       @default("UNKNOWN")
+  lastTrackingSync   DateTime?
+  daysInTransit      Int?
+  delayThreshold     Int?
+  isDelayed          Boolean      @default(false)
+  alertSentAt        DateTime?
+  rawTrackingData    String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  events             OrderEvent[]
+}
+
+model OrderEvent {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id])
+  status      String
+  description String?
+  occurredAt  DateTime
+  createdAt   DateTime @default(now())
+}
