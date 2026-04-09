@@ -1,87 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  /* Backgrounds */
   --color-bg-primary:     #FFFFFF;
   --color-bg-secondary:   #F8F9FB;
   --color-bg-tertiary:    #F0F2F5;
-
-  /* Borders */
   --color-border-default: #E5E8EE;
-  --color-border-strong:  #D0D5DF;
-
-  /* Text */
   --color-text-primary:   #0C0E13;
   --color-text-secondary: #4A5165;
   --color-text-tertiary:  #9299A8;
-
-  /* Green */
-  --color-primary-50:  #EDFAF3;
-  --color-primary-500: #15803D;
-  --color-primary-600: #0D6330;
-
-  /* Sidebar dark */
-  --color-sidebar-bg:          #111418;
-  --color-sidebar-surface:     #1C2128;
-  --color-sidebar-border:      rgba(255,255,255,0.07);
-  --color-sidebar-text:        rgba(255,255,255,0.45);
-  --color-sidebar-text-active: #FFFFFF;
-
-  /* Banner */
-  --color-banner-bg:    #091A0F;
-  --color-banner-surface: #132210;
-
-  /* Button */
-  --color-btn-primary-bg:    #111418;
-  --color-btn-primary-hover: #1C2128;
-
-  /* Lime */
-  --color-lime: #BFEF5A;
-
-  /* Status */
-  --color-success:      #15803D;
-  --color-success-bg:   #EDFAF3;
-  --color-success-text: #0D5C2E;
-  --color-warning:      #B45309;
-  --color-warning-bg:   #FFFBEB;
-  --color-danger:       #C92A2A;
-  --color-danger-bg:    #FFF0F0;
-  --color-info:         #1D4ED8;
-  --color-info-bg:      #EFF6FF;
-
-  /* Layout */
-  --sidebar-width: 216px;
-  --topbar-height: 50px;
+  --color-success-bg:     #EDFAF3;
+  --color-success-text:   #0D5C2E;
+  --color-warning:        #B45309;
+  --color-warning-bg:     #FFFBEB;
+  --color-danger:         #C92A2A;
+  --color-danger-bg:      #FFF0F0;
+  --color-info:           #1D4ED8;
+  --color-info-bg:        #EFF6FF;
 }
 
 * { box-sizing: border-box; }
-
-html, body {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-}
+html, body { height: 100%; margin: 0; padding: 0; }
 
 body {
   font-family: 'Inter', system-ui, sans-serif;
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
+  background: #F0F2F5;
+  color: #0C0E13;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Skeleton shimmer */
 @keyframes og-shimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 .og-skeleton {
-  background: linear-gradient(90deg,
-    var(--color-bg-tertiary) 25%,
-    var(--color-bg-secondary) 50%,
-    var(--color-bg-tertiary) 75%
-  );
+  background: linear-gradient(90deg, #F0F2F5 25%, #F8F9FB 50%, #F0F2F5 75%);
   background-size: 200% 100%;
   animation: og-shimmer 1.5s linear infinite;
   border-radius: 8px;
+}
+
+/* Stats grid — responsivo */
+.og-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 768px) {
+  .og-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
 }
