@@ -14,12 +14,12 @@ export async function POST(req: Request) {
       },
     })
 
-    const codes = orders.map(o => o.trackingCode!).filter(Boolean)
+    const codes = orders.map((o: typeof orders[number]) => o.trackingCode!).filter(Boolean)
     const results = await trackPackages(codes)
 
     let updated = 0
     for (const result of results) {
-      const order = orders.find(o => o.trackingCode === result.trackingCode)
+      const order = orders.find((o: typeof orders[number]) => o.trackingCode === result.trackingCode)
       if (!order) continue
 
       const now = new Date()

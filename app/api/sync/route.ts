@@ -76,14 +76,14 @@ export async function POST(req: Request) {
     })
 
     const trackingCodes = trackableOrders
-      .map(o => o.trackingCode)
+      .map((o: typeof trackableOrders[number]) => o.trackingCode)
       .filter((code): code is string => code !== null)
 
     let trackedCount = 0
 
     if (trackingCodes.length > 0) {
       const trackingResults = await trackPackages(trackingCodes)
-      const resultsByCode = new Map(trackingResults.map(r => [r.trackingCode, r]))
+      const resultsByCode = new Map(trackingResults.map((r: typeof trackingResults[number]) => [r.trackingCode, r]))
 
       for (const order of trackableOrders) {
         if (!order.trackingCode) continue

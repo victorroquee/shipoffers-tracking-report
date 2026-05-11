@@ -66,7 +66,7 @@ export async function GET(req: Request) {
         where: { destinationCountry: { not: null } },
       })
       const countries = rows
-        .map(r => r.destinationCountry as string)
+        .map((r: typeof rows[number]) => r.destinationCountry as string)
         .filter(Boolean)
         .sort()
       return NextResponse.json({ countries })
