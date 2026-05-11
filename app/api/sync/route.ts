@@ -12,28 +12,30 @@ export async function POST(req: Request) {
 
     let synced = 0
     for (const o of orders) {
-      const shippedAt = o.shipped_at ? new Date(o.shipped_at) : null
+      // NOTE: ShipoffersOrder uses Swagger field names; full pipeline rewrite in plan 01-02
+      // shipped_at is not in the Swagger spec — using created_at as proxy until real field confirmed
+      const shippedAt = o.created_at ? new Date(o.created_at) : null
       const daysInTransit = shippedAt
         ? Math.floor((Date.now() - shippedAt.getTime()) / 86400000) : null
-      const delayThreshold = getDelayThreshold(o.destination_country)
+      const destinationCountry = o.shipping_address?.country ?? null
+      const delayThreshold = getDelayThreshold(destinationCountry)
 
       await prisma.order.upsert({
-        where: { shipofffersId: o.id },
+        where: { shipofffersId: String(o.id) },
         create: {
-          shipofffersId: o.id,
-          trackingCode: o.tracking_code ?? null,
-          customerName: o.customer_name ?? null,
-          customerEmail: o.customer_email ?? null,
-          destinationCountry: o.destination_country ?? null,
+          shipofffersId: String(o.id),
+          trackingCode: null,
+          customerName: o.shipping_address?.name ?? null,
+          customerEmail: o.email ?? null,
+          destinationCountry,
           shippedAt,
           daysInTransit,
           delayThreshold,
           status: 'UNKNOWN',
         },
         update: {
-          trackingCode: o.tracking_code ?? undefined,
-          customerName: o.customer_name ?? undefined,
-          destinationCountry: o.destination_country ?? undefined,
+          customerName: o.shipping_address?.name ?? undefined,
+          destinationCountry: destinationCountry ?? undefined,
           shippedAt: shippedAt ?? undefined,
           daysInTransit,
           delayThreshold,
