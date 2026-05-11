@@ -26,7 +26,7 @@ const DELAY_RULES: Record<string, number> = {
   US: 14,  // EUA
   RO: 18,  // Romênia
   BR: 21,  // Brasil
-  DEFAULT: 14,
+  DEFAULT: 7,
 }
 
 /**

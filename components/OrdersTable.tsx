@@ -168,6 +168,22 @@ function DetailRow({ order }: { order: Order }) {
   )
 }
 
+function getTransitStatus(days: number | null, threshold: number | null): { label: string; color: string; bg: string } {
+  if (days == null) return { label: '', color: '#9299A8', bg: 'transparent' }
+  const limit = threshold ?? 7
+  if (days >= limit) return { label: 'Atrasado', color: '#C92A2A', bg: '#FFF0F0' }
+  if (days >= 5) return { label: 'Atencao', color: '#B45309', bg: '#FFFBEB' }
+  return { label: 'No Prazo', color: '#0D6330', bg: '#EDFAF3' }
+}
+
+function getDaysColor(days: number | null, threshold: number | null): string {
+  if (days == null) return '#9299A8'
+  const limit = threshold ?? 7
+  if (days >= limit) return '#C92A2A'  // vermelho
+  if (days >= 5) return '#B45309'       // amarelo/amber
+  return '#0C0E13'                       // normal
+}
+
 export default function OrdersTable({ orders }: { orders: Order[] }) {
   const [expanded, setExpanded] = useState<string | null>(null)
 
@@ -195,14 +211,16 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
             <th style={th}>Pais</th>
             <th style={th}>Dias / Limite</th>
             <th style={th}>Status</th>
-            <th style={th}>Alerta</th>
+            <th style={th}>Atraso</th>
           </tr>
         </thead>
         <tbody>
           {orders.map(order => {
             const open = expanded === order.id
-            const rowBg = order.isDelayed ? '#FFF8F8' : '#FFFFFF'
-            const rowBgHover = order.isDelayed ? '#FFF0F0' : '#F8F9FB'
+            const transit = getTransitStatus(order.daysInTransit, order.delayThreshold)
+            const isWarning = order.daysInTransit != null && order.daysInTransit >= 5
+            const rowBg = order.isDelayed ? '#FFF8F8' : isWarning ? '#FFFDF5' : '#FFFFFF'
+            const rowBgHover = order.isDelayed ? '#FFF0F0' : isWarning ? '#FFF8E8' : '#F8F9FB'
 
             return (
               <React.Fragment key={order.id}>
@@ -272,7 +290,7 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                     {order.daysInTransit != null ? (
                       <span style={{
                         fontWeight: 600,
-                        color: order.isDelayed ? '#C92A2A' : '#0C0E13',
+                        color: getDaysColor(order.daysInTransit, order.delayThreshold),
                         fontVariantNumeric: 'tabular-nums',
                         fontSize: '13px',
                       }}>
@@ -293,40 +311,43 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                     <StatusBadge status={order.status} />
                   </td>
 
-                  {/* Alerta */}
+                  {/* Atraso */}
                   <td style={{ padding: '10px 14px' }}>
-                    {order.isDelayed ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '3px',
-                          padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 600,
-                          background: '#FFF0F0', color: '#C92A2A',
-                        }}>
-                          Em Atraso
-                        </span>
-                        {order.alertSentAt ? (
+                    {(() => {
+                      const transit = getTransitStatus(order.daysInTransit, order.delayThreshold)
+                      if (!transit.label) return <span style={{ color: '#9299A8' }}>—</span>
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                           <span style={{
                             display: 'inline-flex', alignItems: 'center', gap: '3px',
                             padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 600,
-                            background: '#EDFAF3', color: '#0D5C2E',
+                            background: transit.bg, color: transit.color,
                           }}>
-                            <MailCheck size={9} strokeWidth={1.4} />
-                            Email Enviado
+                            {transit.label}
                           </span>
-                        ) : (
-                          <span style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '3px',
-                            padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 500,
-                            background: '#FFFBEB', color: '#B45309',
-                          }}>
-                            <Mail size={9} strokeWidth={1.4} />
-                            Aguardando
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span style={{ color: '#9299A8', fontSize: '12px' }}>—</span>
-                    )}
+                          {order.isDelayed && order.alertSentAt && (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '3px',
+                              padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 600,
+                              background: '#EDFAF3', color: '#0D5C2E',
+                            }}>
+                              <MailCheck size={9} strokeWidth={1.4} />
+                              Email Enviado
+                            </span>
+                          )}
+                          {order.isDelayed && !order.alertSentAt && (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '3px',
+                              padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 500,
+                              background: '#FFFBEB', color: '#B45309',
+                            }}>
+                              <Mail size={9} strokeWidth={1.4} />
+                              Aguardando
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </td>
                 </tr>
 
