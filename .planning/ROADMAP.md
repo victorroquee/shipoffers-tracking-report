@@ -44,12 +44,14 @@ Plans:
   2. User can type a customer name and see only matching orders
   3. User can select a country from a dropdown and see only orders destined to that country
   4. Orders table shows paginated results with navigation controls (not all orders at once)
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+**Wave 1**
+- [ ] 02-01-PLAN.md -- Add search, country filter, and pagination to /api/orders endpoint (both mock and Prisma modes)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 02-02-PLAN.md -- Add search input, country dropdown, and pagination controls to dashboard UI
 
 ### Phase 3: Export & Configuration
 **Goal**: Operators can extract delayed order data and adjust alerting behavior without code changes
@@ -87,7 +89,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. API Integration Fix | 0/2 | Not started | - |
-| 2. Search, Filter & Pagination | 0/0 | Not started | - |
+| 1. API Integration Fix | 2/2 | Complete | 2026-05-11 |
+| 2. Search, Filter & Pagination | 0/2 | Planning | - |
 | 3. Export & Configuration | 0/0 | Not started | - |
 | 4. Production Infrastructure | 0/0 | Not started | - |
