@@ -79,11 +79,12 @@ Plans:
   1. Prisma schema works with Vercel Postgres (migrations run cleanly)
   2. All environment variables (API keys, SMTP, CRON_SECRET, auth credentials) are documented and have production values
   3. Application boots and serves the dashboard when deployed to Vercel
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+**Wave 1**
+- [ ] 04-01-PLAN.md -- Migrate Prisma from SQLite-only to dual-mode: PostgreSQL for production, SQLite for local dev
+- [ ] 04-02-PLAN.md -- Document all env vars in .env.example, fix stale .env.local names, add health check endpoint
 
 ## Progress
 
@@ -95,4 +96,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. API Integration Fix | 2/2 | Complete | 2026-05-11 |
 | 2. Search, Filter & Pagination | 2/2 | Complete | 2026-05-11 |
 | 3. Export & Configuration | 0/2 | Planning | - |
-| 4. Production Infrastructure | 0/0 | Not started | - |
+| 4. Production Infrastructure | 0/2 | Planning | - |
