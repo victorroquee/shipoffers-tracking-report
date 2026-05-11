@@ -2,11 +2,15 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Package, BarChart2, RefreshCw } from 'lucide-react'
+import { Package, BarChart2, RefreshCw, Settings } from 'lucide-react'
 
 const navItems = [
   { href: '/',        label: 'Pedidos',  icon: Package },
   { href: '/metrics', label: 'Metricas', icon: BarChart2 },
+]
+
+const configItems = [
+  { href: '/settings', label: 'Configuracoes', icon: Settings },
 ]
 
 export default function Sidebar() {
@@ -77,6 +81,42 @@ export default function Sidebar() {
             Monitoramento
           </span>
           {navItems.map(({ href, label, icon: Icon }) => {
+            const active = pathname === href
+            return (
+              <Link key={href} href={href} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '7px 9px',
+                borderRadius: '8px',
+                fontSize: '12.5px',
+                fontWeight: active ? 500 : 400,
+                color: active ? '#fff' : 'rgba(255,255,255,0.45)',
+                textDecoration: 'none',
+                background: active ? 'rgba(255,255,255,0.09)' : 'transparent',
+                marginBottom: '1px',
+                transition: 'all 110ms ease',
+              }}>
+                <Icon size={15} strokeWidth={1.4} style={{ opacity: active ? 1 : 0.7 }} />
+                {label}
+              </Link>
+            )
+          })}
+        </div>
+
+        <div style={{ marginTop: '12px' }}>
+          <span style={{
+            fontSize: '10px', fontWeight: 500,
+            color: 'rgba(255,255,255,0.25)',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            padding: '0 8px',
+            display: 'block',
+            marginBottom: '3px',
+          }}>
+            Sistema
+          </span>
+          {configItems.map(({ href, label, icon: Icon }) => {
             const active = pathname === href
             return (
               <Link key={href} href={href} style={{

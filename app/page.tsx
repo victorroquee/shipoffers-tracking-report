@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, SlidersHorizontal, BarChart2, Wifi, Search, ChevronDown } from 'lucide-react'
+import { AlertTriangle, SlidersHorizontal, BarChart2, Wifi, Search, ChevronDown, Download } from 'lucide-react'
 import OrdersTable from '@/components/OrdersTable'
 import StatsBar from '@/components/StatsBar'
 import SyncButton from '@/components/SyncButton'
@@ -86,6 +86,59 @@ export default function HomePage() {
   // Pagination display
   const startItem = total === 0 ? 0 : (page - 1) * 25 + 1
   const endItem = Math.min(page * 25, total)
+
+  // CSV Export
+  const exportCSV = useCallback(async () => {
+    let exportOrders = orders
+    // If delayed filter is active, fetch all delayed orders (not just current page)
+    if (filter === 'delayed') {
+      try {
+        const params = new URLSearchParams()
+        if (debouncedSearch) params.set('search', debouncedSearch)
+        if (country) params.set('country', country)
+        params.set('filter', 'delayed')
+        params.set('per_page', '9999')
+        const res = await fetch(`/api/orders?${params.toString()}`)
+        const data = await res.json()
+        if (Array.isArray(data.orders)) exportOrders = data.orders
+      } catch { /* fall back to current page */ }
+    }
+
+    const formatDate = (iso: string | null | undefined) => {
+      if (!iso) return ''
+      const d = new Date(iso)
+      if (isNaN(d.getTime())) return ''
+      return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+    }
+
+    const escape = (val: string | number | null | undefined) => {
+      const s = String(val ?? '')
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
+    }
+
+    const headers = 'ID Pedido,Nome Cliente,Codigo Rastreio,Pais,Dias em Transito,Threshold,Status,Data Envio'
+    const rows = exportOrders.map(o => [
+      escape(o.orderId ?? o.id),
+      escape(o.customerName),
+      escape(o.trackingCode),
+      escape(o.country),
+      escape(o.daysInTransit),
+      escape(o.threshold ?? o.delayThreshold),
+      escape(o.status),
+      escape(formatDate(o.shippedAt ?? o.createdAt)),
+    ].join(','))
+
+    const csv = '\uFEFF' + headers + '\n' + rows.join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const today = new Date()
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `pedidos-atrasados-${dateStr}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [orders, filter, debouncedSearch, country])
 
   return (
     <div style={{ minHeight: '100vh', background: '#F0F2F5' }}>
@@ -217,6 +270,20 @@ export default function HomePage() {
           <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#9299A8' }}>
             {loading ? 'Carregando...' : `${total} pedido${total !== 1 ? 's' : ''}`}
           </span>
+          <button
+            onClick={exportCSV}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '5px',
+              padding: '5px 14px', borderRadius: '8px', fontSize: '12px',
+              fontWeight: 500, border: '1px solid rgba(59,188,120,0.35)',
+              background: 'rgba(59,188,120,0.08)', color: '#3bbc78',
+              cursor: 'pointer', transition: 'all 110ms ease', fontFamily: 'inherit',
+              flexShrink: 0,
+            }}
+          >
+            <Download size={13} strokeWidth={1.4} />
+            Exportar CSV
+          </button>
         </div>
 
         {loading ? (
