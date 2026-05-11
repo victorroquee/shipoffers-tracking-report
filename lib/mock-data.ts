@@ -2,7 +2,7 @@
 // Dados mockados para desenvolvimento sem API keys reais.
 // Toggle: USE_MOCK=true no .env.local
 
-import { getDelayThreshold } from './delay-rules'
+import { getDelayThresholdSync } from './delay-rules'
 
 export interface MockOrder {
   id: string
@@ -160,13 +160,6 @@ export function getMockMetrics() {
   }
 }
 
-// Retorna lista ordenada de países distintos dos pedidos mock
-export function getDistinctMockCountries(): string[] {
-  return Array.from(
-    new Set(MOCK_ORDERS.map(o => o.destination_country).filter(Boolean) as string[])
-  ).sort()
-}
-
 // Gerar dados de DB mockados (formato completo como sairia do Prisma)
 export function getMockDBOrders() {
   const now = new Date()
@@ -175,7 +168,7 @@ export function getMockDBOrders() {
     const shippedAt = o.shipped_at ? new Date(o.shipped_at) : null
     const daysInTransit = shippedAt
       ? Math.floor((now.getTime() - shippedAt.getTime()) / 86400000) : null
-    const delayThreshold = getDelayThreshold(o.destination_country)
+    const delayThreshold = getDelayThresholdSync(o.destination_country)
     const trackingStatus = o.tracking_code ? (TRACKING_STATUS_MAP[o.tracking_code] ?? 'UNKNOWN') : 'UNKNOWN'
     const isDelayed = trackingStatus !== 'DELIVERED' && daysInTransit !== null && daysInTransit > delayThreshold
 

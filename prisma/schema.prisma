@@ -42,3 +42,11 @@ model OrderEvent {
   occurredAt  DateTime
   createdAt   DateTime @default(now())
 }
+
+model DelayThreshold {
+  id          String   @id @default(cuid())
+  countryCode String   @unique
+  countryName String
+  days        Int
+  updatedAt   DateTime @updatedAt
+}

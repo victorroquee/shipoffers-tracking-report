@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       const daysInTransit = shippedAt
         ? Math.floor((Date.now() - shippedAt.getTime()) / 86400000)
         : null
-      const delayThreshold = getDelayThreshold(order.shipping_address?.country)
+      const delayThreshold = await getDelayThreshold(order.shipping_address?.country)
 
       await prisma.order.upsert({
         where: { shipofffersId: String(order.id) },
