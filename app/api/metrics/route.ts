@@ -22,7 +22,7 @@ export async function GET() {
     ])
 
     const avgTransitTime = deliveredOrders.length
-      ? Math.round(deliveredOrders.reduce((acc: number, o) => acc + (o.daysInTransit ?? 0), 0) / deliveredOrders.length)
+      ? Math.round(deliveredOrders.reduce((acc: number, o: typeof deliveredOrders[number]) => acc + (o.daysInTransit ?? 0), 0) / deliveredOrders.length)
       : null
 
     const byCountry: Record<string, number[]> = {}
