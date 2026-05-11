@@ -61,12 +61,15 @@ Plans:
   1. User can click a button to download a CSV file containing all currently delayed orders
   2. User can view current delay thresholds per country in a settings interface
   3. User can change a country's delay threshold and see it take effect on the next alert cycle
-**Plans**: TBD
+**Plans**: 2 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+**Wave 1**
+- [ ] 03-01-PLAN.md -- Add DelayThreshold Prisma model, seed with current values, create /api/settings/thresholds API, update getDelayThreshold to read from DB
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 03-02-PLAN.md -- Add CSV export button to dashboard, create /settings threshold editor page, add Configuracoes link to sidebar
 
 ### Phase 4: Production Infrastructure
 **Goal**: Application is ready to deploy on Vercel with a production database
@@ -90,6 +93,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. API Integration Fix | 2/2 | Complete | 2026-05-11 |
-| 2. Search, Filter & Pagination | 0/2 | Planning | - |
-| 3. Export & Configuration | 0/0 | Not started | - |
+| 2. Search, Filter & Pagination | 2/2 | Complete | 2026-05-11 |
+| 3. Export & Configuration | 0/2 | Planning | - |
 | 4. Production Infrastructure | 0/0 | Not started | - |
