@@ -1,8 +1,5 @@
 import axios from 'axios'
-import { getMockOrders, type MockOrder } from './mock-data'
-
-// Re-export MockOrder as ShipoffersOrder for mock fallback compatibility
-export type { MockOrder }
+import { getMockOrders } from './mock-data'
 
 // Mock mode detection: explicit flag OR missing credentials (per D-10)
 function shouldUseMock(): boolean {
@@ -70,13 +67,44 @@ export interface FetchParams {
   email?: string
 }
 
+// Convert flat MockOrder fields to ShipoffersOrder shape for mock consistency
+function mockOrdersToShipoffersOrders(): ShipoffersOrder[] {
+  return getMockOrders().map((o, i) => ({
+    id: i + 10001, // Numeric ID matching SO-1XXXX pattern
+    order_number: o.id ?? `SO-${10001 + i}`,
+    email: o.customer_email ?? '',
+    shipping_address: {
+      name: o.customer_name,
+      country: o.destination_country,
+    },
+    created_at: o.shipped_at ?? new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    status: o.status ?? 'shipped',
+  }))
+}
+
+// Generate mock shipments from mock orders that have tracking codes
+function mockShipmentsFromOrders(): ShipoffersShipment[] {
+  return getMockOrders()
+    .filter(o => !!o.tracking_code)
+    .map((o, i) => ({
+      id: i + 1,
+      order_id: parseInt(o.id?.replace('SO-', '') ?? '0', 10),
+      tracking_number: o.tracking_code!,
+      carrier: 'mock-carrier',
+      shipped_at: o.shipped_at ?? new Date().toISOString(),
+      created_at: o.shipped_at ?? new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }))
+}
+
 /**
  * Fetch all orders from /api/stores/{store_id}/orders.json with pagination (per D-05).
  * Falls back to mock data when credentials are missing or USE_MOCK=true (per D-10).
  */
 export async function fetchAllOrders(params?: FetchParams): Promise<ShipoffersOrder[]> {
   if (shouldUseMock()) {
-    return getMockOrders() as unknown as ShipoffersOrder[]
+    return mockOrdersToShipoffersOrders()
   }
 
   const storeId = process.env.SHIPOFFERS_STORE_ID
@@ -107,8 +135,8 @@ export async function fetchAllOrders(params?: FetchParams): Promise<ShipoffersOr
  */
 export async function fetchAllShipments(params?: FetchParams): Promise<ShipoffersShipment[]> {
   if (shouldUseMock()) {
-    console.log('[MOCK] Retornando shipments mockados (nenhum no mock-data)')
-    return []
+    console.log('[MOCK] Retornando shipments mockados da Shipoffers')
+    return mockShipmentsFromOrders()
   }
 
   const storeId = process.env.SHIPOFFERS_STORE_ID
@@ -139,7 +167,7 @@ export async function fetchAllShipments(params?: FetchParams): Promise<Shipoffer
 export async function fetchOrderShipments(orderId: number): Promise<ShipoffersShipment[]> {
   if (shouldUseMock()) {
     console.log('[MOCK] Retornando order shipments mockados')
-    return []
+    return mockShipmentsFromOrders().filter(s => s.order_id === orderId)
   }
 
   const storeId = process.env.SHIPOFFERS_STORE_ID
