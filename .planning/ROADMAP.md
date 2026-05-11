@@ -83,8 +83,8 @@ Plans:
 
 Plans:
 **Wave 1**
-- [ ] 04-01-PLAN.md -- Migrate Prisma from SQLite-only to dual-mode: PostgreSQL for production, SQLite for local dev
-- [ ] 04-02-PLAN.md -- Document all env vars in .env.example, fix stale .env.local names, add health check endpoint
+- [x] 04-01-PLAN.md -- Migrate Prisma from SQLite-only to dual-mode: PostgreSQL for production, SQLite for local dev
+- [x] 04-02-PLAN.md -- Document all env vars in .env.example, fix stale .env.local names, add health check endpoint
 
 ## Progress
 
