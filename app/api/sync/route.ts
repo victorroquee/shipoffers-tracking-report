@@ -77,7 +77,7 @@ export async function POST(req: Request) {
 
     const trackingCodes = trackableOrders
       .map((o: typeof trackableOrders[number]) => o.trackingCode)
-      .filter((code): code is string => code !== null)
+      .filter((code: string | null): code is string => code !== null)
 
     let trackedCount = 0
 
