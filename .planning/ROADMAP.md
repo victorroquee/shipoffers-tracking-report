@@ -66,7 +66,7 @@ Plans:
 
 Plans:
 **Wave 1**
-- [ ] 03-01-PLAN.md -- Add DelayThreshold Prisma model, seed with current values, create /api/settings/thresholds API, update getDelayThreshold to read from DB
+- [x] 03-01-PLAN.md -- Add DelayThreshold Prisma model, seed with current values, create /api/settings/thresholds API, update getDelayThreshold to read from DB
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 03-02-PLAN.md -- Add CSV export button to dashboard, create /settings threshold editor page, add Configuracoes link to sidebar
