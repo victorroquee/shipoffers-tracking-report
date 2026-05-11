@@ -11,21 +11,21 @@ const DELAY_RULES: Record<string, number> = {
   CH: 7,   // Suíça
   NL: 7,   // Holanda
   BE: 7,   // Bélgica
-  FR: 10,  // França
-  PT: 10,  // Portugal
-  SE: 10,  // Suécia
-  DK: 10,  // Dinamarca
-  GB: 10,  // Reino Unido
-  FI: 12,  // Finlândia
-  IT: 12,  // Itália
-  ES: 12,  // Espanha
-  PL: 14,  // Polônia
-  CZ: 14,  // República Tcheca
-  HU: 14,  // Hungria
-  NO: 14,  // Noruega
-  US: 14,  // EUA
-  RO: 18,  // Romênia
-  BR: 21,  // Brasil
+  FR: 7,   // França
+  PT: 7,   // Portugal
+  SE: 7,   // Suécia
+  DK: 7,   // Dinamarca
+  GB: 7,   // Reino Unido
+  FI: 7,   // Finlândia
+  IT: 7,   // Itália
+  ES: 7,   // Espanha
+  PL: 7,   // Polônia
+  CZ: 7,   // República Tcheca
+  HU: 7,   // Hungria
+  NO: 7,   // Noruega
+  US: 7,   // EUA
+  RO: 7,   // Romênia
+  BR: 7,   // Brasil
   DEFAULT: 7,
 }
 
