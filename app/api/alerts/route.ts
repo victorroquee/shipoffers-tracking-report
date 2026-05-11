@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     })
 
     if (delayed.length > 0) {
-      await sendDelayAlert(delayed.map(o => ({
+      await sendDelayAlert(delayed.map((o: typeof delayed[number]) => ({
         shipofffersId: o.shipofffersId,
         trackingCode: o.trackingCode,
         customerName: o.customerName,
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       })))
 
       await prisma.order.updateMany({
-        where: { id: { in: delayed.map(o => o.id) } },
+        where: { id: { in: delayed.map((o: typeof delayed[number]) => o.id) } },
         data: { alertSentAt: new Date() },
       })
     }
