@@ -33,7 +33,7 @@ Plans:
 - [x] 01-01-PLAN.md -- Rewrite Shipoffers API client with HTTP Basic Auth, correct /api/stores/{id}/*.json endpoints, mock fallback when credentials missing
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01-02-PLAN.md -- Rewrite sync route to fetch orders + shipments, correlate tracking codes by order_id, map fields to Prisma, call 17track
+- [x] 01-02-PLAN.md -- Rewrite sync route to fetch orders + shipments, correlate tracking codes by order_id, map fields to Prisma, call 17track
 
 ### Phase 2: Search, Filter & Pagination
 **Goal**: Users can quickly find specific orders in a growing dataset
