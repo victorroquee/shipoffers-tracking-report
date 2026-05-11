@@ -48,7 +48,7 @@ Plans:
 
 Plans:
 **Wave 1**
-- [ ] 02-01-PLAN.md -- Add search, country filter, and pagination to /api/orders endpoint (both mock and Prisma modes)
+- [x] 02-01-PLAN.md -- Add search, country filter, and pagination to /api/orders endpoint (both mock and Prisma modes)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 02-02-PLAN.md -- Add search input, country dropdown, and pagination controls to dashboard UI
