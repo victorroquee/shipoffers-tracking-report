@@ -5,10 +5,10 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  // Em produção (Vercel Postgres), trocar para:
-  // provider = "postgresql"
-  // A URL é configurada em prisma.config.ts (Prisma 7)
+  provider = "postgresql"
+  // URL is configured at runtime via prisma.config.ts (Prisma 7 pattern)
+  // Local dev: DATABASE_URL="file:./dev.db" uses SQLite via adapter
+  // Production: DATABASE_URL="postgresql://..." uses Vercel Postgres via adapter
 }
 
 model Order {
