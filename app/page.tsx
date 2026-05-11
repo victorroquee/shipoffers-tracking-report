@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, SlidersHorizontal, BarChart2, Wifi } from 'lucide-react'
+import { AlertTriangle, SlidersHorizontal, BarChart2, Wifi, Search, ChevronDown } from 'lucide-react'
 import OrdersTable from '@/components/OrdersTable'
 import StatsBar from '@/components/StatsBar'
 import SyncButton from '@/components/SyncButton'
@@ -18,19 +18,74 @@ export default function HomePage() {
   const [filter, setFilter] = useState<FilterType>('all')
   const [loading, setLoading] = useState(true)
 
+  // Search state
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  // Country filter state
+  const [country, setCountry] = useState('')
+  const [countries, setCountries] = useState<string[]>([])
+
+  // Pagination state
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+
+  // Debounce search: update debouncedSearch 300ms after search changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  // Fetch countries on mount
+  useEffect(() => {
+    fetch('/api/orders?countries=true')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data.countries)) setCountries(data.countries)
+      })
+      .catch(() => {})
+  }, [])
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, country, filter])
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/orders${filter !== 'all' ? `?filter=${filter}` : ''}`)
+      const params = new URLSearchParams()
+      if (debouncedSearch) params.set('search', debouncedSearch)
+      if (country) params.set('country', country)
+      if (filter !== 'all') params.set('filter', filter)
+      params.set('page', String(page))
+      params.set('per_page', '25')
+
+      const res = await fetch(`/api/orders?${params.toString()}`)
       const data = await res.json()
-      setOrders(Array.isArray(data) ? data : [])
-    } catch { setOrders([]) }
-    finally { setLoading(false) }
-  }, [filter])
+
+      setOrders(Array.isArray(data.orders) ? data.orders : [])
+      setTotal(typeof data.total === 'number' ? data.total : 0)
+      setTotalPages(typeof data.total_pages === 'number' ? data.total_pages : 1)
+    } catch {
+      setOrders([])
+      setTotal(0)
+      setTotalPages(1)
+    } finally {
+      setLoading(false)
+    }
+  }, [debouncedSearch, country, filter, page])
 
   useEffect(() => { load() }, [load])
 
   const delayed = orders.filter(o => o.isDelayed && o.status !== 'DELIVERED').length
+
+  // Pagination display
+  const startItem = total === 0 ? 0 : (page - 1) * 25 + 1
+  const endItem = Math.min(page * 25, total)
 
   return (
     <div style={{ minHeight: '100vh', background: '#F0F2F5' }}>
@@ -96,6 +151,54 @@ export default function HomePage() {
 
         <StatsBar orders={orders} />
 
+        {/* Search + Country filter row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Search input */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <Search size={13} strokeWidth={1.4} style={{
+              position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)',
+              color: '#9299A8', pointerEvents: 'none',
+            }} />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar por rastreio ou cliente..."
+              style={{
+                width: '280px', padding: '7px 12px 7px 32px',
+                background: '#FFFFFF', border: '1px solid #E5E8EE',
+                borderRadius: '8px', fontSize: '12px', color: '#0C0E13',
+                fontFamily: 'inherit', outline: 'none',
+              }}
+            />
+          </div>
+
+          {/* Country dropdown */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <select
+              value={country}
+              onChange={e => setCountry(e.target.value)}
+              style={{
+                padding: '7px 32px 7px 12px',
+                background: '#FFFFFF', border: '1px solid #E5E8EE',
+                borderRadius: '8px', fontSize: '12px', color: '#0C0E13',
+                fontFamily: 'inherit', appearance: 'none', cursor: 'pointer',
+                outline: 'none', minWidth: '140px',
+              }}
+            >
+              <option value="">Todos os paises</option>
+              {countries.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <ChevronDown size={13} strokeWidth={1.4} style={{
+              position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+              color: '#9299A8', pointerEvents: 'none',
+            }} />
+          </div>
+        </div>
+
+        {/* Status filter row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
           <SlidersHorizontal size={14} strokeWidth={1.4} style={{ color: '#9299A8', flexShrink: 0 }} />
           {filters.map(f => {
@@ -112,7 +215,7 @@ export default function HomePage() {
             )
           })}
           <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#9299A8' }}>
-            {loading ? 'Carregando...' : `${orders.length} pedido${orders.length !== 1 ? 's' : ''}`}
+            {loading ? 'Carregando...' : `${total} pedido${total !== 1 ? 's' : ''}`}
           </span>
         </div>
 
@@ -124,6 +227,51 @@ export default function HomePage() {
           </div>
         ) : (
           <OrdersTable orders={orders} />
+        )}
+
+        {/* Pagination controls */}
+        {!loading && totalPages > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            flexWrap: 'wrap', gap: '8px', padding: '4px 0',
+          }}>
+            <span style={{ fontSize: '11px', color: '#9299A8' }}>
+              {total === 0 ? 'Nenhum resultado' : `Mostrando ${startItem}–${endItem} de ${total} pedidos`}
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '12px', color: '#4A5165' }}>
+                Pagina {page} de {totalPages || 1}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                style={{
+                  padding: '5px 14px', borderRadius: '8px', fontSize: '12px',
+                  fontWeight: 400, border: '1px solid #E5E8EE',
+                  background: page <= 1 ? '#F0F2F5' : '#FFFFFF',
+                  color: page <= 1 ? '#C0C5D0' : '#4A5165',
+                  cursor: page <= 1 ? 'not-allowed' : 'pointer',
+                  transition: 'all 110ms ease', fontFamily: 'inherit',
+                }}
+              >
+                Anterior
+              </button>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                style={{
+                  padding: '5px 14px', borderRadius: '8px', fontSize: '12px',
+                  fontWeight: 400, border: '1px solid #E5E8EE',
+                  background: page >= totalPages ? '#F0F2F5' : '#FFFFFF',
+                  color: page >= totalPages ? '#C0C5D0' : '#4A5165',
+                  cursor: page >= totalPages ? 'not-allowed' : 'pointer',
+                  transition: 'all 110ms ease', fontFamily: 'inherit',
+                }}
+              >
+                Proximo
+              </button>
+            </div>
+          </div>
         )}
 
         <p style={{ fontSize: '11px', color: '#9299A8', textAlign: 'center', margin: '4px 0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
