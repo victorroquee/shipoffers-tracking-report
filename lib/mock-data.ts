@@ -160,6 +160,13 @@ export function getMockMetrics() {
   }
 }
 
+// Retorna lista ordenada de países distintos dos pedidos mock
+export function getDistinctMockCountries(): string[] {
+  return Array.from(
+    new Set(MOCK_ORDERS.map(o => o.destination_country).filter(Boolean) as string[])
+  ).sort()
+}
+
 // Gerar dados de DB mockados (formato completo como sairia do Prisma)
 export function getMockDBOrders() {
   const now = new Date()
