@@ -2,12 +2,18 @@ import nodemailer from 'nodemailer'
 
 const isMock = process.env.USE_MOCK === 'true'
 
-const transporter = !isMock ? nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT),
-  secure: false,
-  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-}) : null
+let _transporter: ReturnType<typeof nodemailer.createTransport> | null = null
+function getTransporter() {
+  if (!_transporter) {
+    _transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    })
+  }
+  return _transporter
+}
 
 function esc(s: string | null | undefined): string {
   if (!s) return '—'
@@ -69,7 +75,7 @@ export async function sendDelayAlert(orders: DelayedOrder[]): Promise<void> {
     return
   }
 
-  await transporter!.sendMail({
+  await getTransporter().sendMail({
     from: process.env.ALERT_FROM,
     to: process.env.ALERT_TO_SHIPOFFERS,
     subject: `⚠️ ${orders.length} pedido(s) em atraso — OG Group`,
