@@ -91,7 +91,7 @@ export async function POST(req: Request) {
         },
       })
 
-      if (isDelayed) {
+      if (isDelayed && !order.isDelayed) {
         await prisma.orderEvent.create({
           data: {
             orderId: order.id,
