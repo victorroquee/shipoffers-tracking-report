@@ -4,55 +4,43 @@ import Link from 'next/link'
 import { AlertTriangle, SlidersHorizontal, BarChart2, Wifi, Search, ChevronDown, Download } from 'lucide-react'
 import OrdersTable from '@/components/OrdersTable'
 import StatsBar from '@/components/StatsBar'
-import SyncButton from '@/components/SyncButton'
+import DashboardPanel from '@/components/DashboardPanel'
 
-type FilterType = 'all' | 'delayed' | 'delivered'
+type FilterType = 'active' | 'delayed' | 'ontime' | 'pending' | 'delivered'
 const filters: { key: FilterType; label: string }[] = [
-  { key: 'all', label: 'Todos' },
-  { key: 'delayed', label: 'Em Atraso' },
-  { key: 'delivered', label: 'Entregues' },
+  { key: 'active', label: 'Ativos' },
+  { key: 'delayed', label: 'Atrasados' },
+  { key: 'ontime', label: 'No Prazo' },
+  { key: 'pending', label: 'Aguardando Envio' },
+  { key: 'delivered', label: 'Entregues (arquivo)' },
 ]
 
 export default function HomePage() {
   const [orders, setOrders] = useState<any[]>([])
-  const [filter, setFilter] = useState<FilterType>('all')
+  const [filter, setFilter] = useState<FilterType>('active')
   const [loading, setLoading] = useState(true)
 
-  // Search state
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-
-  // Country filter state
   const [country, setCountry] = useState('')
   const [countries, setCountries] = useState<string[]>([])
-
-  // Pagination state
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
 
-  // Debounce search: update debouncedSearch 300ms after search changes
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search)
-    }, 300)
+    const timer = setTimeout(() => setDebouncedSearch(search), 300)
     return () => clearTimeout(timer)
   }, [search])
 
-  // Fetch countries on mount
   useEffect(() => {
     fetch('/api/orders?countries=true')
       .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data.countries)) setCountries(data.countries)
-      })
+      .then(data => { if (Array.isArray(data.countries)) setCountries(data.countries) })
       .catch(() => {})
   }, [])
 
-  // Reset page to 1 when filters change
-  useEffect(() => {
-    setPage(1)
-  }, [debouncedSearch, country, filter])
+  useEffect(() => { setPage(1) }, [debouncedSearch, country, filter])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -60,7 +48,7 @@ export default function HomePage() {
       const params = new URLSearchParams()
       if (debouncedSearch) params.set('search', debouncedSearch)
       if (country) params.set('country', country)
-      if (filter !== 'all') params.set('filter', filter)
+      params.set('filter', filter)
       params.set('page', String(page))
       params.set('per_page', '25')
 
@@ -82,15 +70,11 @@ export default function HomePage() {
   useEffect(() => { load() }, [load])
 
   const delayed = orders.filter(o => o.isDelayed && o.status !== 'DELIVERED').length
-
-  // Pagination display
   const startItem = total === 0 ? 0 : (page - 1) * 25 + 1
   const endItem = Math.min(page * 25, total)
 
-  // CSV Export
   const exportCSV = useCallback(async () => {
     let exportOrders = orders
-    // If delayed filter is active, fetch all delayed orders (not just current page)
     if (filter === 'delayed') {
       try {
         const params = new URLSearchParams()
@@ -110,22 +94,21 @@ export default function HomePage() {
       if (isNaN(d.getTime())) return ''
       return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
     }
-
     const escape = (val: string | number | null | undefined) => {
       const s = String(val ?? '')
       return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
     }
 
-    const headers = 'ID Pedido,Nome Cliente,Codigo Rastreio,Pais,Dias em Transito,Threshold,Status,Data Envio'
+    const headers = 'ID Pedido,Nome Cliente,Codigo Rastreio,Pais,Dias desde Pedido,Status,Data Pedido,Data Envio'
     const rows = exportOrders.map(o => [
       escape(o.orderId ?? o.id),
       escape(o.customerName),
       escape(o.trackingCode),
-      escape(o.country),
-      escape(o.daysInTransit),
-      escape(o.threshold ?? o.delayThreshold),
+      escape(o.destinationCountry),
+      escape(o.daysSinceOrder ?? o.daysInTransit),
       escape(o.status),
-      escape(formatDate(o.shippedAt ?? o.createdAt)),
+      escape(formatDate(o.orderedAt)),
+      escape(formatDate(o.shippedAt)),
     ].join(','))
 
     const csv = '\uFEFF' + headers + '\n' + rows.join('\n')
@@ -135,7 +118,7 @@ export default function HomePage() {
     const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
     const a = document.createElement('a')
     a.href = url
-    a.download = `pedidos-atrasados-${dateStr}.csv`
+    a.download = `pedidos-${filter}-${dateStr}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }, [orders, filter, debouncedSearch, country])
@@ -145,17 +128,15 @@ export default function HomePage() {
       <style>{`
         .og-header { padding: 0 24px; }
         .og-main { padding: 20px 24px; }
-        .og-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .og-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
         .og-hide-sm { display: flex; }
         .og-show-sm { display: none; }
-        .og-metrics-link::after { content: 'Metricas'; margin-left: 4px; }
         @media (max-width: 768px) {
           .og-header { padding: 0 14px; }
           .og-main { padding: 12px 14px; }
           .og-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
           .og-hide-sm { display: none !important; }
           .og-show-sm { display: flex !important; }
-          .og-metrics-link::after { content: ''; }
         }
       `}</style>
 
@@ -164,7 +145,6 @@ export default function HomePage() {
         height: '54px', display: 'flex', alignItems: 'center', gap: '10px',
         position: 'sticky', top: 0, zIndex: 20,
       }}>
-        {/* Logo */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/og-group-logo.png" alt="OG Group" style={{ height: '30px', width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
         <span style={{ fontSize: '10px', fontWeight: 500, color: '#BFEF5A', background: 'rgba(191,239,90,0.12)', padding: '2px 7px', borderRadius: '20px', letterSpacing: '0.02em', whiteSpace: 'nowrap', flexShrink: 0 }}>
@@ -193,29 +173,35 @@ export default function HomePage() {
           </div>
         )}
 
-        <Link href="/metrics" className="og-metrics-link" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'rgba(255,255,255,0.5)', textDecoration: 'none', padding: '5px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+        <Link href="/settings" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'rgba(255,255,255,0.5)', textDecoration: 'none', padding: '5px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
           <BarChart2 size={13} strokeWidth={1.4} />
         </Link>
-
-        <SyncButton onSynced={load} />
       </header>
 
       <main className="og-main" style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '1400px', width: '100%', margin: '0 auto' }}>
 
         <StatsBar orders={orders} />
 
+        <DashboardPanel />
+
+        {/* Separator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 0' }}>
+          <div style={{ flex: 1, height: '1px', background: '#E5E8EE' }} />
+          <span style={{ fontSize: '11px', fontWeight: 600, color: '#9299A8', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+            Pedidos Individuais
+          </span>
+          <div style={{ flex: 1, height: '1px', background: '#E5E8EE' }} />
+        </div>
+
         {/* Search + Country filter row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {/* Search input */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <Search size={13} strokeWidth={1.4} style={{
               position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)',
               color: '#9299A8', pointerEvents: 'none',
             }} />
             <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+              type="text" value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Buscar por rastreio ou cliente..."
               style={{
                 width: '280px', padding: '7px 12px 7px 32px',
@@ -225,24 +211,17 @@ export default function HomePage() {
               }}
             />
           </div>
-
-          {/* Country dropdown */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
-            <select
-              value={country}
-              onChange={e => setCountry(e.target.value)}
+            <select value={country} onChange={e => setCountry(e.target.value)}
               style={{
                 padding: '7px 32px 7px 12px',
                 background: '#FFFFFF', border: '1px solid #E5E8EE',
                 borderRadius: '8px', fontSize: '12px', color: '#0C0E13',
                 fontFamily: 'inherit', appearance: 'none', cursor: 'pointer',
                 outline: 'none', minWidth: '140px',
-              }}
-            >
+              }}>
               <option value="">Todos os paises</option>
-              {countries.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
+              {countries.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
             <ChevronDown size={13} strokeWidth={1.4} style={{
               position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
@@ -255,12 +234,12 @@ export default function HomePage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
           <SlidersHorizontal size={14} strokeWidth={1.4} style={{ color: '#9299A8', flexShrink: 0 }} />
           {filters.map(f => {
-            const active = filter === f.key
+            const isActive = filter === f.key
             return (
               <button key={f.key} onClick={() => setFilter(f.key)} style={{
                 padding: '5px 14px', borderRadius: '8px', fontSize: '12px',
-                fontWeight: active ? 500 : 400, border: active ? 'none' : '1px solid #E5E8EE',
-                background: active ? '#111418' : '#FFFFFF', color: active ? '#FFFFFF' : '#4A5165',
+                fontWeight: isActive ? 500 : 400, border: isActive ? 'none' : '1px solid #E5E8EE',
+                background: isActive ? '#111418' : '#FFFFFF', color: isActive ? '#FFFFFF' : '#4A5165',
                 cursor: 'pointer', transition: 'all 110ms ease', fontFamily: 'inherit',
               }}>
                 {f.label}
@@ -270,17 +249,13 @@ export default function HomePage() {
           <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#9299A8' }}>
             {loading ? 'Carregando...' : `${total} pedido${total !== 1 ? 's' : ''}`}
           </span>
-          <button
-            onClick={exportCSV}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '5px',
-              padding: '5px 14px', borderRadius: '8px', fontSize: '12px',
-              fontWeight: 500, border: '1px solid rgba(59,188,120,0.35)',
-              background: 'rgba(59,188,120,0.08)', color: '#3bbc78',
-              cursor: 'pointer', transition: 'all 110ms ease', fontFamily: 'inherit',
-              flexShrink: 0,
-            }}
-          >
+          <button onClick={exportCSV} style={{
+            display: 'flex', alignItems: 'center', gap: '5px',
+            padding: '5px 14px', borderRadius: '8px', fontSize: '12px',
+            fontWeight: 500, border: '1px solid rgba(59,188,120,0.35)',
+            background: 'rgba(59,188,120,0.08)', color: '#3bbc78',
+            cursor: 'pointer', transition: 'all 110ms ease', fontFamily: 'inherit', flexShrink: 0,
+          }}>
             <Download size={13} strokeWidth={1.4} />
             Exportar CSV
           </button>
@@ -296,7 +271,6 @@ export default function HomePage() {
           <OrdersTable orders={orders} />
         )}
 
-        {/* Pagination controls */}
         {!loading && totalPages > 0 && (
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -309,41 +283,31 @@ export default function HomePage() {
               <span style={{ fontSize: '12px', color: '#4A5165' }}>
                 Pagina {page} de {totalPages || 1}
               </span>
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page <= 1}
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
                 style={{
-                  padding: '5px 14px', borderRadius: '8px', fontSize: '12px',
-                  fontWeight: 400, border: '1px solid #E5E8EE',
+                  padding: '5px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 400,
+                  border: '1px solid #E5E8EE',
                   background: page <= 1 ? '#F0F2F5' : '#FFFFFF',
                   color: page <= 1 ? '#C0C5D0' : '#4A5165',
                   cursor: page <= 1 ? 'not-allowed' : 'pointer',
                   transition: 'all 110ms ease', fontFamily: 'inherit',
-                }}
-              >
-                Anterior
-              </button>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
+                }}>Anterior</button>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
                 style={{
-                  padding: '5px 14px', borderRadius: '8px', fontSize: '12px',
-                  fontWeight: 400, border: '1px solid #E5E8EE',
+                  padding: '5px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 400,
+                  border: '1px solid #E5E8EE',
                   background: page >= totalPages ? '#F0F2F5' : '#FFFFFF',
                   color: page >= totalPages ? '#C0C5D0' : '#4A5165',
                   cursor: page >= totalPages ? 'not-allowed' : 'pointer',
                   transition: 'all 110ms ease', fontFamily: 'inherit',
-                }}
-              >
-                Proximo
-              </button>
+                }}>Proximo</button>
             </div>
           </div>
         )}
 
         <p style={{ fontSize: '11px', color: '#9299A8', textAlign: 'center', margin: '4px 0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
           <Wifi size={11} strokeWidth={1.4} />
-          Toque em um pedido para ver detalhes · Sync 08:00 e 20:00 BRT
+          Toque em um pedido para ver detalhes
         </p>
       </main>
     </div>

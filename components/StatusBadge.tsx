@@ -3,7 +3,7 @@ const config: Record<string, { label: string; bg: string; color: string }> = {
   IN_TRANSIT:       { label: 'Em Transito',     bg: '#EFF6FF', color: '#1D4ED8' },
   OUT_FOR_DELIVERY: { label: 'Saiu p/ Entrega', bg: '#FFFBEB', color: '#B45309' },
   EXCEPTION:        { label: 'Excecao',         bg: '#FFF0F0', color: '#C92A2A' },
-  PENDING:          { label: 'Pendente',        bg: '#F0F2F5', color: '#4A5165' },
+  PENDING:          { label: 'Aguardando Envio', bg: '#FFFBEB', color: '#B45309' },
   UNKNOWN:          { label: 'Desconhecido',    bg: '#F0F2F5', color: '#9299A8' },
 }
 

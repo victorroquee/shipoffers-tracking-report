@@ -2,6 +2,22 @@
 import React, { useState } from 'react'
 import StatusBadge from './StatusBadge'
 import { ChevronDown, ChevronUp, ExternalLink, Mail, MailCheck, Clock, MapPin, Calendar, Package } from 'lucide-react'
+import { FLAG_CDN_URL } from '@/lib/constants'
+
+function CountryFlag({ code }: { code: string | null }) {
+  if (!code) return null
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`${FLAG_CDN_URL}/${code.toLowerCase()}.png`}
+      alt={code}
+      width={20}
+      height={15}
+      style={{ borderRadius: '2px', flexShrink: 0, objectFit: 'cover' }}
+      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+    />
+  )
+}
 
 interface OrderEvent {
   id: string
@@ -16,8 +32,10 @@ interface Order {
   customerName: string | null
   customerEmail: string | null
   destinationCountry: string | null
+  orderedAt: string | null
   shippedAt: string | null
   deliveredAt: string | null
+  daysSinceOrder: number | null
   daysInTransit: number | null
   delayThreshold: number | null
   status: string
@@ -72,7 +90,17 @@ function DetailRow({ order }: { order: Order }) {
       icon: MapPin,
       label: 'Pais de Destino',
       value: order.destinationCountry
-        ? <span style={{ fontFamily: 'ui-monospace, monospace', background: '#F0F2F5', padding: '1px 8px', borderRadius: '4px', fontWeight: 500, color: '#4A5165', fontSize: '11px' }}>{order.destinationCountry}</span>
+        ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'ui-monospace, monospace', background: '#F0F2F5', padding: '1px 8px', borderRadius: '4px', fontWeight: 500, color: '#4A5165', fontSize: '11px' }}>
+            <CountryFlag code={order.destinationCountry} />
+            {order.destinationCountry}
+          </span>
+        : <span style={{ color: '#9299A8' }}>—</span>,
+    },
+    {
+      icon: Calendar,
+      label: 'Data do Pedido',
+      value: order.orderedAt
+        ? new Date(order.orderedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
         : <span style={{ color: '#9299A8' }}>—</span>,
     },
     {
@@ -80,7 +108,7 @@ function DetailRow({ order }: { order: Order }) {
       label: 'Data de Envio',
       value: order.shippedAt
         ? new Date(order.shippedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
-        : <span style={{ color: '#9299A8' }}>—</span>,
+        : <span style={{ color: '#B45309', fontWeight: 500 }}>Aguardando envio</span>,
     },
     {
       icon: Calendar,
@@ -107,7 +135,7 @@ function DetailRow({ order }: { order: Order }) {
 
   return (
     <tr style={{ background: order.isDelayed ? '#FFF5F5' : '#FAFBFC' }}>
-      <td colSpan={7} style={{ padding: '16px 20px 16px 40px', borderBottom: '1px solid #E5E8EE' }}>
+      <td colSpan={6} style={{ padding: '16px 20px 16px 40px', borderBottom: '1px solid #E5E8EE' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px 24px', marginBottom: order.events?.length ? '14px' : 0 }}>
           {items.map(item => (
             <div key={item.label} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
@@ -168,20 +196,20 @@ function DetailRow({ order }: { order: Order }) {
   )
 }
 
-function getTransitStatus(days: number | null, threshold: number | null): { label: string; color: string; bg: string } {
+function getOrderStatus(days: number | null, threshold: number | null): { label: string; color: string; bg: string } {
   if (days == null) return { label: '', color: '#9299A8', bg: 'transparent' }
   const limit = threshold ?? 7
   if (days >= limit) return { label: 'Atrasado', color: '#C92A2A', bg: '#FFF0F0' }
-  if (days >= 5) return { label: 'Atencao', color: '#B45309', bg: '#FFFBEB' }
+  if (days >= limit * 0.7) return { label: 'Atencao', color: '#B45309', bg: '#FFFBEB' }
   return { label: 'No Prazo', color: '#0D6330', bg: '#EDFAF3' }
 }
 
 function getDaysColor(days: number | null, threshold: number | null): string {
   if (days == null) return '#9299A8'
   const limit = threshold ?? 7
-  if (days >= limit) return '#C92A2A'  // vermelho
-  if (days >= 5) return '#B45309'       // amarelo/amber
-  return '#0C0E13'                       // normal
+  if (days >= limit) return '#C92A2A'
+  if (days >= limit * 0.7) return '#B45309'
+  return '#0C0E13'
 }
 
 export default function OrdersTable({ orders }: { orders: Order[] }) {
@@ -209,16 +237,17 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
             <th style={th}>Pedido</th>
             <th style={th}>Cliente</th>
             <th style={th}>Pais</th>
-            <th style={th}>Dias / Limite</th>
+            <th style={th}>Dias / Threshold</th>
             <th style={th}>Status</th>
-            <th style={th}>Atraso</th>
           </tr>
         </thead>
         <tbody>
           {orders.map(order => {
             const open = expanded === order.id
-            const transit = getTransitStatus(order.daysInTransit, order.delayThreshold)
-            const isWarning = order.daysInTransit != null && order.daysInTransit >= 5
+            const days = order.daysSinceOrder ?? order.daysInTransit
+            const orderSt = getOrderStatus(days, order.delayThreshold)
+            const limit = order.delayThreshold ?? 7
+            const isWarning = days != null && days >= limit * 0.7
             const rowBg = order.isDelayed ? '#FFF8F8' : isWarning ? '#FFFDF5' : '#FFFFFF'
             const rowBgHover = order.isDelayed ? '#FFF0F0' : isWarning ? '#FFF8E8' : '#F8F9FB'
 
@@ -272,10 +301,12 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                   {/* Pais */}
                   <td style={{ padding: '10px 14px' }}>
                     <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '6px',
                       fontFamily: 'ui-monospace, monospace', fontSize: '11px',
                       background: '#F0F2F5', padding: '2px 8px', borderRadius: '4px',
                       color: '#4A5165', fontWeight: 500,
                     }}>
+                      <CountryFlag code={order.destinationCountry} />
                       {order.destinationCountry ?? '?'}
                     </span>
                     {order.shippedAt && (
@@ -285,69 +316,69 @@ export default function OrdersTable({ orders }: { orders: Order[] }) {
                     )}
                   </td>
 
-                  {/* Dias / Limite */}
-                  <td style={{ padding: '10px 14px' }}>
-                    {order.daysInTransit != null ? (
-                      <span style={{
-                        fontWeight: 600,
-                        color: getDaysColor(order.daysInTransit, order.delayThreshold),
-                        fontVariantNumeric: 'tabular-nums',
-                        fontSize: '13px',
-                      }}>
-                        {order.daysInTransit}d
+                  {/* Dias desde pedido / Threshold with progress bar */}
+                  <td style={{ padding: '10px 14px', minWidth: '130px' }}>
+                    {days != null ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{
+                          fontWeight: 600,
+                          color: getDaysColor(days, order.delayThreshold),
+                          fontVariantNumeric: 'tabular-nums',
+                          fontSize: '13px',
+                        }}>
+                          {days}d
+                          {order.delayThreshold && (
+                            <span style={{ fontWeight: 400, fontSize: '11px', color: '#9299A8' }}>
+                              {' '}/ {order.delayThreshold}d
+                            </span>
+                          )}
+                        </span>
                         {order.delayThreshold && (
-                          <span style={{ fontWeight: 400, fontSize: '11px', color: '#9299A8' }}>
-                            {' '}/ {order.delayThreshold}d
-                          </span>
+                          <div style={{ width: '100%', height: '4px', borderRadius: '2px', background: '#F0F2F5', overflow: 'hidden' }}>
+                            <div style={{
+                              width: `${Math.min(100, (days / order.delayThreshold) * 100)}%`,
+                              height: '100%',
+                              borderRadius: '2px',
+                              background: days >= order.delayThreshold ? '#C92A2A'
+                                : days >= order.delayThreshold * 0.7 ? '#B45309'
+                                : '#22c55e',
+                              transition: 'width 300ms ease',
+                            }} />
+                          </div>
                         )}
-                      </span>
+                      </div>
                     ) : (
                       <span style={{ color: '#9299A8' }}>—</span>
                     )}
                   </td>
 
-                  {/* Status */}
+                  {/* Status — dual tags: envio + prazo */}
                   <td style={{ padding: '10px 14px' }}>
-                    <StatusBadge status={order.status} />
-                  </td>
-
-                  {/* Atraso */}
-                  <td style={{ padding: '10px 14px' }}>
-                    {(() => {
-                      const transit = getTransitStatus(order.daysInTransit, order.delayThreshold)
-                      if (!transit.label) return <span style={{ color: '#9299A8' }}>—</span>
-                      return (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                          <span style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '3px',
-                            padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 600,
-                            background: transit.bg, color: transit.color,
-                          }}>
-                            {transit.label}
-                          </span>
-                          {order.isDelayed && order.alertSentAt && (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: '3px',
-                              padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 600,
-                              background: '#EDFAF3', color: '#0D5C2E',
-                            }}>
-                              <MailCheck size={9} strokeWidth={1.4} />
-                              Email Enviado
-                            </span>
-                          )}
-                          {order.isDelayed && !order.alertSentAt && (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: '3px',
-                              padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 500,
-                              background: '#FFFBEB', color: '#B45309',
-                            }}>
-                              <Mail size={9} strokeWidth={1.4} />
-                              Aguardando
-                            </span>
-                          )}
-                        </div>
-                      )
-                    })()}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      {/* Tag 1: Shipping status */}
+                      <StatusBadge status={order.status} />
+                      {/* Tag 2: Delay status */}
+                      {orderSt.label && (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '3px',
+                          padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 600,
+                          background: orderSt.bg, color: orderSt.color, width: 'fit-content',
+                        }}>
+                          {orderSt.label}
+                        </span>
+                      )}
+                      {/* Tag 3: Email alert status */}
+                      {order.isDelayed && order.alertSentAt && (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '3px',
+                          padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 600,
+                          background: '#EDFAF3', color: '#0D5C2E', width: 'fit-content',
+                        }}>
+                          <MailCheck size={9} strokeWidth={1.4} />
+                          Email ok
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </tr>
 
