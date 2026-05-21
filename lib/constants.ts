@@ -9,9 +9,9 @@ export const STATUS_RANK: Record<string, number> = {
   UNKNOWN: 0,
   PENDING: 1,
   IN_TRANSIT: 2,
-  EXCEPTION: 2,
-  OUT_FOR_DELIVERY: 3,
-  DELIVERED: 4,
+  EXCEPTION: 3,
+  OUT_FOR_DELIVERY: 4,
+  DELIVERED: 5,
 }
 
 // 17track credit limits
