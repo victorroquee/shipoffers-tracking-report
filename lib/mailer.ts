@@ -2,12 +2,23 @@ import nodemailer from 'nodemailer'
 
 const isMock = process.env.USE_MOCK === 'true'
 
-const transporter = !isMock ? nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT),
-  secure: false,
-  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-}) : null
+let _transporter: ReturnType<typeof nodemailer.createTransport> | null = null
+function getTransporter() {
+  if (!_transporter) {
+    _transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    })
+  }
+  return _transporter
+}
+
+function esc(s: string | null | undefined): string {
+  if (!s) return '—'
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
 
 export interface DelayedOrder {
   shipofffersId: string
@@ -25,10 +36,10 @@ export async function sendDelayAlert(orders: DelayedOrder[]): Promise<void> {
 
   const rows = orders.map(o => `
     <tr>
-      <td style="padding:8px;border:1px solid #2a2a2a">${o.shipofffersId}</td>
-      <td style="padding:8px;border:1px solid #2a2a2a;font-family:monospace">${o.trackingCode ?? '—'}</td>
-      <td style="padding:8px;border:1px solid #2a2a2a">${o.customerName ?? '—'}</td>
-      <td style="padding:8px;border:1px solid #2a2a2a">${o.destinationCountry ?? '—'}</td>
+      <td style="padding:8px;border:1px solid #2a2a2a">${esc(o.shipofffersId)}</td>
+      <td style="padding:8px;border:1px solid #2a2a2a;font-family:monospace">${esc(o.trackingCode)}</td>
+      <td style="padding:8px;border:1px solid #2a2a2a">${esc(o.customerName)}</td>
+      <td style="padding:8px;border:1px solid #2a2a2a">${esc(o.destinationCountry)}</td>
       <td style="padding:8px;border:1px solid #2a2a2a">${o.shippedAt ? new Date(o.shippedAt).toLocaleDateString('pt-BR') : '—'}</td>
       <td style="padding:8px;border:1px solid #2a2a2a;color:#ff4444;font-weight:bold">
         ${o.daysInTransit ?? '?'} dias (limite: ${o.delayThreshold ?? '?'})
@@ -64,7 +75,7 @@ export async function sendDelayAlert(orders: DelayedOrder[]): Promise<void> {
     return
   }
 
-  await transporter!.sendMail({
+  await getTransporter().sendMail({
     from: process.env.ALERT_FROM,
     to: process.env.ALERT_TO_SHIPOFFERS,
     subject: `⚠️ ${orders.length} pedido(s) em atraso — OG Group`,

@@ -6,10 +6,12 @@ CREATE TABLE "Order" (
     "customerName" TEXT,
     "customerEmail" TEXT,
     "destinationCountry" TEXT,
+    "orderedAt" DATETIME,
     "shippedAt" DATETIME,
     "deliveredAt" DATETIME,
     "status" TEXT NOT NULL DEFAULT 'UNKNOWN',
     "lastTrackingSync" DATETIME,
+    "daysSinceOrder" INTEGER,
     "daysInTransit" INTEGER,
     "delayThreshold" INTEGER,
     "isDelayed" BOOLEAN NOT NULL DEFAULT false,
@@ -30,5 +32,17 @@ CREATE TABLE "OrderEvent" (
     CONSTRAINT "OrderEvent_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
+-- CreateTable
+CREATE TABLE "DelayThreshold" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "countryCode" TEXT NOT NULL,
+    "countryName" TEXT NOT NULL,
+    "days" INTEGER NOT NULL,
+    "updatedAt" DATETIME NOT NULL
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Order_shipofffersId_key" ON "Order"("shipofffersId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "DelayThreshold_countryCode_key" ON "DelayThreshold"("countryCode");

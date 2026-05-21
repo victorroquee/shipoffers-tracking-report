@@ -34,9 +34,13 @@ yarn-error.log*
 .env*
 !.env.example
 
+# database
+*.db
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.env*.local

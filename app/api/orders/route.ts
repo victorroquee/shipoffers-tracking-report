@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getMockDBOrders } from '@/lib/mock-data'
+import { buildDateWhere } from '@/lib/date-filter'
 
 const isMock = process.env.USE_MOCK === 'true'
 
@@ -17,7 +18,6 @@ export async function GET(req: Request) {
     const page = Math.max(1, isNaN(rawPage) ? 1 : rawPage)
     const perPage = Math.min(100, Math.max(1, isNaN(rawPerPage) ? 25 : rawPerPage))
 
-    // Em modo mock, retorna dados sem precisar do banco
     if (isMock) {
       const allOrders = getMockDBOrders()
 
@@ -29,7 +29,6 @@ export async function GET(req: Request) {
       }
 
       let orders = allOrders
-
       if (search) {
         const term = search.toLowerCase()
         orders = orders.filter(o =>
@@ -37,43 +36,29 @@ export async function GET(req: Request) {
           (o.trackingCode?.toLowerCase().includes(term) ?? false)
         )
       }
-
-      if (country) {
-        orders = orders.filter(o => o.destinationCountry === country)
-      }
-
+      if (country) orders = orders.filter(o => o.destinationCountry === country)
+      if (filter === 'active') orders = orders.filter(o => o.status !== 'DELIVERED')
       if (filter === 'delayed') orders = orders.filter(o => o.isDelayed && o.status !== 'DELIVERED')
       if (filter === 'delivered') orders = orders.filter(o => o.status === 'DELIVERED')
 
       const total = orders.length
-      const totalPages = Math.ceil(total / perPage)
       const paged = orders.slice((page - 1) * perPage, page * perPage)
-
-      return NextResponse.json({
-        orders: paged,
-        total,
-        page,
-        per_page: perPage,
-        total_pages: totalPages,
-      })
+      return NextResponse.json({ orders: paged, total, page, per_page: perPage, total_pages: Math.ceil(total / perPage) })
     }
 
-    // Prisma mode — countries endpoint
     if (countriesOnly) {
       const rows = await prisma.order.findMany({
         select: { destinationCountry: true },
         distinct: ['destinationCountry'],
         where: { destinationCountry: { not: null } },
       })
-      const countries = rows
-        .map((r: typeof rows[number]) => r.destinationCountry as string)
-        .filter(Boolean)
-        .sort()
-      return NextResponse.json({ countries })
+      return NextResponse.json({
+        countries: rows.map((r: typeof rows[number]) => r.destinationCountry as string).filter(Boolean).sort(),
+      })
     }
 
-    // Build composable where clause
-    const andClauses: Record<string, unknown>[] = []
+    // Cutoff: only May 2026+ orders
+    const andClauses: Record<string, unknown>[] = [buildDateWhere()]
 
     if (search) {
       andClauses.push({
@@ -84,23 +69,27 @@ export async function GET(req: Request) {
       })
     }
 
-    if (country) {
-      andClauses.push({ destinationCountry: country })
-    }
+    if (country) andClauses.push({ destinationCountry: country })
 
-    if (filter === 'delayed') {
+    if (filter === 'active') {
+      andClauses.push({ status: { not: 'DELIVERED' } })
+    } else if (filter === 'delayed') {
       andClauses.push({ isDelayed: true, status: { not: 'DELIVERED' } })
+    } else if (filter === 'ontime') {
+      andClauses.push({ isDelayed: false, status: { not: 'DELIVERED' } })
+    } else if (filter === 'pending') {
+      andClauses.push({ status: 'PENDING' })
     } else if (filter === 'delivered') {
       andClauses.push({ status: 'DELIVERED' })
     }
 
-    const where = andClauses.length > 0 ? { AND: andClauses } : {}
+    const where = { AND: andClauses }
 
     const [total, orders] = await Promise.all([
       prisma.order.count({ where }),
       prisma.order.findMany({
         where,
-        orderBy: [{ isDelayed: 'desc' }, { daysInTransit: 'desc' }],
+        orderBy: [{ isDelayed: 'desc' }, { daysSinceOrder: 'desc' }],
         include: {
           events: filter === 'delayed'
             ? { orderBy: { occurredAt: 'desc' }, take: 5 }
@@ -111,13 +100,7 @@ export async function GET(req: Request) {
       }),
     ])
 
-    return NextResponse.json({
-      orders,
-      total,
-      page,
-      per_page: perPage,
-      total_pages: Math.ceil(total / perPage),
-    })
+    return NextResponse.json({ orders, total, page, per_page: perPage, total_pages: Math.ceil(total / perPage) })
   } catch (error) {
     console.error('[ORDERS ERROR]', error)
     return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 })

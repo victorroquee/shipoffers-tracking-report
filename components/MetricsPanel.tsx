@@ -1,11 +1,12 @@
 interface CountryAvg {
   country: string
   avgDays: number
-  count: number
+  total: number
 }
 
 interface MetricsData {
-  deliveryRate: number
+  total: number
+  delivered: number
   avgTransitTime: number | null
   delayed: number
   inTransit: number
@@ -13,12 +14,13 @@ interface MetricsData {
 }
 
 export default function MetricsPanel({ data }: { data: MetricsData }) {
+  const deliveryRate = data.total > 0 ? Math.round((data.delivered / data.total) * 100) : 0
   const kpis = [
     {
       label: 'Taxa de Entrega',
-      value: `${data.deliveryRate}%`,
-      color: data.deliveryRate >= 90 ? '#0D6330' : data.deliveryRate >= 70 ? '#B45309' : '#C92A2A',
-      bg: data.deliveryRate >= 90 ? '#EDFAF3' : data.deliveryRate >= 70 ? '#FFFBEB' : '#FFF0F0',
+      value: `${deliveryRate}%`,
+      color: deliveryRate >= 90 ? '#0D6330' : deliveryRate >= 70 ? '#B45309' : '#C92A2A',
+      bg: deliveryRate >= 90 ? '#EDFAF3' : deliveryRate >= 70 ? '#FFFBEB' : '#FFF0F0',
     },
     {
       label: 'Tempo Medio (dias)',
@@ -103,7 +105,7 @@ export default function MetricsPanel({ data }: { data: MetricsData }) {
                   }} />
                 </div>
                 <span style={{ fontSize: '11px', color: '#4A5165', width: '130px', textAlign: 'right', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
-                  {c.avgDays} dias · {c.count} {c.count === 1 ? 'pedido' : 'pedidos'}
+                  {c.avgDays} dias · {c.total} {c.total === 1 ? 'pedido' : 'pedidos'}
                 </span>
               </div>
             )

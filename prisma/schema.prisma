@@ -6,9 +6,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // URL is configured at runtime via prisma.config.ts (Prisma 7 pattern)
-  // Local dev: DATABASE_URL="file:./dev.db" uses SQLite via adapter
-  // Production: DATABASE_URL="postgresql://..." uses Vercel Postgres via adapter
+  // Adapter pattern: actual DB selected at runtime in lib/db.ts
+  // URL configured in prisma.config.ts (Prisma 7 pattern)
 }
 
 model Order {
@@ -18,11 +17,13 @@ model Order {
   customerName       String?
   customerEmail      String?
   destinationCountry String?
+  orderedAt          DateTime?    // Date the customer placed the order (countdown starts here)
   shippedAt          DateTime?
   deliveredAt        DateTime?
   status             String       @default("UNKNOWN")
   lastTrackingSync   DateTime?
-  daysInTransit      Int?
+  daysSinceOrder     Int?         // Days since orderedAt (the real delay metric)
+  daysInTransit      Int?         // Days since shippedAt (for reference only)
   delayThreshold     Int?
   isDelayed          Boolean      @default(false)
   alertSentAt        DateTime?

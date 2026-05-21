@@ -14,93 +14,107 @@ function shouldUseMock(): boolean {
   return false
 }
 
-// Build Basic Auth header (per D-01)
-function buildAuthHeader(): string {
+// Build Axios client lazily so env vars are available at call time
+function getClient() {
   const user = process.env.SHIPOFFERS_API_USER ?? ''
   const pass = process.env.SHIPOFFERS_API_PASS ?? ''
   const encoded = Buffer.from(`${user}:${pass}`).toString('base64')
-  return `Basic ${encoded}`
+  return axios.create({
+    baseURL: process.env.SHIPOFFERS_API_URL ?? 'https://api.shipoffers.com',
+    headers: {
+      'Authorization': `Basic ${encoded}`,
+      'Content-Type': 'application/json',
+    },
+  })
 }
 
-// Axios client with Basic Auth (per D-01)
-const client = axios.create({
-  baseURL: process.env.SHIPOFFERS_API_URL ?? 'https://api.shipoffers.com',
-  headers: {
-    'Authorization': buildAuthHeader(),
-    'Content-Type': 'application/json',
-  },
-})
-
-// Exported interfaces (field names based on Swagger — confirmed when API responds)
-export interface ShipoffersOrder {
-  id: number
-  order_number: string
-  email: string
-  shipping_address: {
-    name?: string
-    country?: string
-    city?: string
-    address1?: string
-    address2?: string
-    zip?: string
-    province?: string
-  }
-  created_at: string
-  updated_at: string
-  status: string
-}
+// --- Real API response types (confirmed 2026-05-12) ---
 
 export interface ShipoffersShipment {
-  id: number
-  order_id: number
-  tracking_number: string
-  carrier: string
-  shipped_at: string
-  created_at: string
-  updated_at: string
+  id: string
+  order_number: string
+  tracking_number: string | null
+  ship_name: string
+  address1: string
+  address2: string
+  city: string
+  state: string
+  postal_code: string
+  country: string
+  status: string
+  carrier_code: string | null
+  service_code: string | null
+  ship_date: string | null
+}
+
+export interface ShipoffersOrder {
+  id: string
+  status: string
+  order_number: string
+  ship_name: string
+  address1: string
+  address2: string
+  city: string
+  state: string
+  postal_code: string
+  country: string
+  ordered_at?: string | null   // When the customer placed the order
+  created_at?: string | null   // When the order was created in Shipoffers
+  shipments: ShipoffersShipment[]
+  items: Array<{ id: string; sku_id: number; quantity: number; sku: string }>
+}
+
+interface OrdersApiResponse {
+  total: number
+  pages: number
+  orders: ShipoffersOrder[]
 }
 
 export interface FetchParams {
   updated_at_start?: string
   updated_at_end?: string
   order_number?: string
-  email?: string
 }
 
 // Convert flat MockOrder fields to ShipoffersOrder shape for mock consistency
 function mockOrdersToShipoffersOrders(): ShipoffersOrder[] {
   return getMockOrders().map((o, i) => ({
-    id: i + 10001, // Numeric ID matching SO-1XXXX pattern
-    order_number: o.id ?? `SO-${10001 + i}`,
-    email: o.customer_email ?? '',
-    shipping_address: {
-      name: o.customer_name,
-      country: o.destination_country,
-    },
-    created_at: o.shipped_at ?? new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    id: `mock-${i + 10001}`,
     status: o.status ?? 'shipped',
+    order_number: o.id ?? `SO-${10001 + i}`,
+    ship_name: o.customer_name ?? '',
+    address1: '',
+    address2: '',
+    city: '',
+    state: '',
+    postal_code: '',
+    country: o.destination_country ?? '',
+    shipments: o.tracking_code
+      ? [{
+          id: `mock-ship-${i}`,
+          order_number: o.id ?? `SO-${10001 + i}`,
+          tracking_number: o.tracking_code,
+          ship_name: o.customer_name ?? '',
+          address1: '',
+          address2: '',
+          city: '',
+          state: '',
+          postal_code: '',
+          country: o.destination_country ?? '',
+          status: 'shipped',
+          carrier_code: null,
+          service_code: null,
+          ship_date: o.shipped_at ?? null,
+        }]
+      : [],
+    items: [],
   }))
 }
 
-// Generate mock shipments from mock orders that have tracking codes
-function mockShipmentsFromOrders(): ShipoffersShipment[] {
-  return getMockOrders()
-    .filter(o => !!o.tracking_code)
-    .map((o, i) => ({
-      id: i + 1,
-      order_id: parseInt(o.id?.replace('SO-', '') ?? '0', 10),
-      tracking_number: o.tracking_code!,
-      carrier: 'mock-carrier',
-      shipped_at: o.shipped_at ?? new Date().toISOString(),
-      created_at: o.shipped_at ?? new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }))
-}
-
 /**
- * Fetch all orders from /api/stores/{store_id}/orders.json with pagination (per D-05).
- * Falls back to mock data when credentials are missing or USE_MOCK=true (per D-10).
+ * Fetch all orders from /api/stores/{store_id}/orders.json with pagination.
+ * Response shape: { total, pages, orders: [...] } — shipments are embedded in each order.
+ * Falls back to mock data when credentials are missing or USE_MOCK=true.
  */
 export async function fetchAllOrders(params?: FetchParams): Promise<ShipoffersOrder[]> {
   if (shouldUseMock()) {
@@ -108,6 +122,7 @@ export async function fetchAllOrders(params?: FetchParams): Promise<ShipoffersOr
   }
 
   const storeId = process.env.SHIPOFFERS_STORE_ID
+  const client = getClient()
   const all: ShipoffersOrder[] = []
   let page = 1
   const per_page = 250
@@ -115,62 +130,34 @@ export async function fetchAllOrders(params?: FetchParams): Promise<ShipoffersOr
   console.log('[API] Buscando pedidos reais da Shipoffers...')
 
   while (true) {
-    const { data } = await client.get<ShipoffersOrder[]>(
+    const { data } = await client.get<OrdersApiResponse>(
       `/api/stores/${storeId}/orders.json`,
       { params: { page, per_page, ...params } }
     )
-    const orders: ShipoffersOrder[] = Array.isArray(data) ? data : []
+    const orders = data?.orders ?? []
     if (!orders.length) break
     all.push(...orders)
     if (orders.length < per_page) break
     page++
   }
 
+  console.log(`[API] Total de pedidos obtidos: ${all.length}`)
   return all
 }
 
 /**
- * Fetch all shipments from /api/stores/{store_id}/shipments.json with pagination (per D-06).
- * Falls back to mock data when credentials are missing or USE_MOCK=true (per D-10).
+ * Fetch shipments for a single order from /api/stores/{store_id}/orders/{order_id}/shipments.json.
  */
-export async function fetchAllShipments(params?: FetchParams): Promise<ShipoffersShipment[]> {
-  if (shouldUseMock()) {
-    console.log('[MOCK] Retornando shipments mockados da Shipoffers')
-    return mockShipmentsFromOrders()
-  }
-
-  const storeId = process.env.SHIPOFFERS_STORE_ID
-  const all: ShipoffersShipment[] = []
-  let page = 1
-  const per_page = 250
-
-  console.log('[API] Buscando shipments reais da Shipoffers...')
-
-  while (true) {
-    const { data } = await client.get<ShipoffersShipment[]>(
-      `/api/stores/${storeId}/shipments.json`,
-      { params: { page, per_page, ...params } }
-    )
-    const shipments: ShipoffersShipment[] = Array.isArray(data) ? data : []
-    if (!shipments.length) break
-    all.push(...shipments)
-    if (shipments.length < per_page) break
-    page++
-  }
-
-  return all
-}
-
-/**
- * Fetch shipments for a single order from /api/stores/{store_id}/orders/{order_id}/shipments.json (per D-07).
- */
-export async function fetchOrderShipments(orderId: number): Promise<ShipoffersShipment[]> {
+export async function fetchOrderShipments(orderId: string): Promise<ShipoffersShipment[]> {
   if (shouldUseMock()) {
     console.log('[MOCK] Retornando order shipments mockados')
-    return mockShipmentsFromOrders().filter(s => s.order_id === orderId)
+    const mockOrders = mockOrdersToShipoffersOrders()
+    const order = mockOrders.find(o => o.id === orderId)
+    return order?.shipments ?? []
   }
 
   const storeId = process.env.SHIPOFFERS_STORE_ID
+  const client = getClient()
   console.log(`[API] Buscando shipments do pedido ${orderId}...`)
 
   const { data } = await client.get<ShipoffersShipment[]>(

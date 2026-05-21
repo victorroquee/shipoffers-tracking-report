@@ -1,4 +1,5 @@
-import { Package, Truck, CheckCircle2, AlertTriangle, TrendingUp } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Package, Truck, AlertTriangle, Clock } from 'lucide-react'
 
 interface Order {
   status: string
@@ -7,7 +8,7 @@ interface Order {
 
 interface Stat {
   label: string
-  value: string | number
+  value: number
   icon: React.ComponentType<{ size?: number; strokeWidth?: number; style?: React.CSSProperties }>
   iconColor: string
   iconBg: string
@@ -15,28 +16,46 @@ interface Stat {
   delta?: { text: string; type: 'up' | 'down' | 'warn' }
 }
 
+interface MetricsData {
+  active: number
+  delayed: number
+  inTransit: number
+  pending: number
+}
+
 export default function StatsBar({ orders }: { orders: Order[] }) {
-  const total = orders.length
-  const delivered = orders.filter(o => o.status === 'DELIVERED').length
-  const inTransit = orders.filter(o => ['IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(o.status)).length
-  const delayed = orders.filter(o => o.isDelayed && o.status !== 'DELIVERED').length
-  const rate = total > 0 ? Math.round((delivered / total) * 100) : 0
+  const [m, setM] = useState<MetricsData | null>(null)
+
+  useEffect(() => {
+    fetch('/api/metrics')
+      .then(res => res.json())
+      .then(data => { if (data && typeof data.total === 'number') setM(data) })
+      .catch(() => {})
+  }, [])
+
+  const active = m?.active ?? orders.filter(o => o.status !== 'DELIVERED').length
+  const inTransit = m?.inTransit ?? orders.filter(o => ['IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(o.status)).length
+  const pending = m?.pending ?? orders.filter(o => o.status === 'PENDING').length
+  const delayed = m?.delayed ?? orders.filter(o => o.isDelayed && o.status !== 'DELIVERED').length
 
   const stats: Stat[] = [
-    { label: 'Total de Pedidos', value: total, icon: Package, iconColor: '#4A5165', iconBg: '#F0F2F5', valueColor: '#0C0E13' },
-    { label: 'Em Transito', value: inTransit, icon: Truck, iconColor: '#1D4ED8', iconBg: '#EFF6FF', valueColor: '#1D4ED8' },
-    { label: 'Entregues', value: delivered, icon: CheckCircle2, iconColor: '#15803D', iconBg: '#EDFAF3', valueColor: '#0D6330' },
     {
-      label: 'Em Atraso', value: delayed, icon: AlertTriangle,
-      iconColor: '#C92A2A', iconBg: '#FFF0F0', valueColor: '#C92A2A',
-      delta: delayed > 0 ? { text: 'Requer atencao', type: 'down' } : { text: 'Nenhum atraso', type: 'up' },
+      label: 'Pedidos Ativos', value: active, icon: Package,
+      iconColor: '#4A5165', iconBg: '#F0F2F5', valueColor: '#0C0E13',
     },
     {
-      label: 'Taxa de Entrega', value: `${rate}%`, icon: TrendingUp,
-      iconColor: rate >= 90 ? '#15803D' : rate >= 70 ? '#B45309' : '#C92A2A',
-      iconBg: rate >= 90 ? '#EDFAF3' : rate >= 70 ? '#FFFBEB' : '#FFF0F0',
-      valueColor: rate >= 90 ? '#0D6330' : rate >= 70 ? '#B45309' : '#C92A2A',
-      delta: rate >= 90 ? { text: 'Meta atingida', type: 'up' } : rate >= 70 ? { text: 'Abaixo da meta', type: 'warn' } : { text: 'Critico', type: 'down' },
+      label: 'Aguardando Envio', value: pending, icon: Clock,
+      iconColor: '#B45309', iconBg: '#FFFBEB', valueColor: '#B45309',
+      delta: pending > 0 ? { text: `${pending} pendentes`, type: 'warn' } : { text: 'Nenhum', type: 'up' },
+    },
+    {
+      label: 'Em Transito', value: inTransit, icon: Truck,
+      iconColor: '#1D4ED8', iconBg: '#EFF6FF', valueColor: '#1D4ED8',
+    },
+    {
+      label: 'Em Atraso (>7d)', value: delayed, icon: AlertTriangle,
+      iconColor: '#C92A2A', iconBg: '#FFF0F0', valueColor: '#C92A2A',
+      delta: delayed > 0 ? { text: 'Requer atencao', type: 'down' } : { text: 'Nenhum atraso', type: 'up' },
     },
   ]
 
